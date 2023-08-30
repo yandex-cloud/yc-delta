@@ -1,0 +1,11 @@
+.vscode/
+.metals/
+tmp/
+target/
+*.tmp
+*.zip
+*.jar
+*.gz
+.DS_Store
+nb-configuration.xml
+nbactions.xml
