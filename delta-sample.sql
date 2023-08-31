@@ -74,3 +74,21 @@ VACUUM deltatab2 RETAIN 0 HOURS;
 -- Примеры запросов
 select substring(a,1,1) as al, count(*) from deltatab1 group by substring(a,1,1) order by substring(a,1,1);
 select substring(a,1,1) as al, count(*) from deltatab1 where b like '7f%' group by substring(a,1,1) order by substring(a,1,1);
+
+-- Пример копирования данных в новую таблицу
+CREATE TABLE deltatab0 (
+  num bigint not null,
+  tv timestamp not null,
+  a varchar(40) not null,
+  b varchar(40) not null,
+  c varchar(40) not null,
+  d varchar(40) not null,
+  tv_year INT not null,
+  tv_month INT not null,
+  tv_day INT not null
+) USING DELTA
+  PARTITIONED BY (tv_year, tv_month);
+
+INSERT INTO deltatab0 SELECT num,tv,a,b,c,d,tv_year,tv_month,tv_day FROM demo2.deltatab1;
+INSERT INTO deltatab0 SELECT num+3000000000,tv,a,b,c,d,tv_year,tv_month,tv_day FROM demo2.deltatab1;
+INSERT INTO deltatab0 SELECT num+6000000000,tv,a,b,c,d,tv_year,tv_month,tv_day FROM demo2.deltatab1;
