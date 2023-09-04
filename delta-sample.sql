@@ -69,6 +69,7 @@ FROM demo1_uuid1g_v;
 OPTIMIZE deltatab1;
 
 -- Удалить лишние файлы
+SET spark.databricks.delta.retentionDurationCheck.enabled = false;
 VACUUM deltatab2 RETAIN 0 HOURS;
 
 -- Примеры запросов
