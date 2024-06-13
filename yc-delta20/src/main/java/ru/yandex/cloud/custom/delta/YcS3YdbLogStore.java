@@ -11,9 +11,7 @@ import java.io.IOException;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.conf.Configuration;
 
-import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
 import com.amazonaws.services.dynamodbv2.model.AttributeDefinition;
 import com.amazonaws.services.dynamodbv2.model.AttributeValue;
 import com.amazonaws.services.dynamodbv2.model.ComparisonOperator;
@@ -36,10 +34,10 @@ import io.delta.storage.BaseExternalLogStore;
 import io.delta.storage.CloseableIterator;
 import io.delta.storage.ExternalCommitEntry;
 
-import ru.yandex.cloud.custom.ddb.YcLockboxAwsCredentials;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import ru.yandex.cloud.custom.ddb.YcDdbDeltaFactory;
 
 /**
  * A customized implementation of {@link S3DynamoDBLogStore} that works with
@@ -56,25 +54,7 @@ public class YcS3YdbLogStore extends BaseExternalLogStore {
 
     // YcS3YdbLogStore Delta20 1.0 2023.07.14
     // YcS3YdbLogStore Delta20 1.1 SNAPSHOT
-    public static final String VERSION = "YcS3YdbLogStore Delta20 1.1 2023.08.01";
-
-    /**
-     * Configuration keys for the DynamoDB client.
-     *
-     * Keys are either of the form $SPARK_CONF_PREFIX.$CONF or $BASE_CONF_PREFIX.$CONF,
-     * e.g. spark.io.delta.storage.S3DynamoDBLogStore.ddb.tableName
-     * or io.delta.storage.S3DynamoDBLogStore.ddb.tableName
-     */
-    public static final String SPARK_CONF_PREFIX = "spark.io.delta.storage.S3DynamoDBLogStore";
-    public static final String BASE_CONF_PREFIX = "io.delta.storage.S3DynamoDBLogStore";
-    public static final String READ_RETRIES = "read.retries";
-    public static final String DDB_ENDPOINT = "ddb.endpoint";
-    public static final String DDB_LOCKBOX = "ddb.lockbox";
-    public static final String DDB_CLIENT_TABLE = "ddb.tableName";
-    public static final String DDB_CLIENT_REGION = "ddb.region";
-
-    // WARNING: setting this value too low can cause data loss. Defaults to a duration of 1 day.
-    public static final String TTL_SECONDS = "ddb.ttl";
+    public static final String VERSION = "YcS3YdbLogStore Delta20 1.2 2024.06.13";
 
     /**
      * DynamoDB table attribute keys
@@ -85,42 +65,16 @@ public class YcS3YdbLogStore extends BaseExternalLogStore {
     private static final String ATTR_COMPLETE = "complete";
     private static final String ATTR_EXPIRE_TIME = "expireTime";
 
-    /**
-     * Member fields
-     */
     private final AmazonDynamoDB client;
-    private final String tableName;
-    private final String regionName;
-    private final String endpoint;
-    private final String lockboxEntry;
-    private final long expirationDelaySeconds;
+    private final YcDdbDeltaFactory factory;
 
     public YcS3YdbLogStore(Configuration hadoopConf) throws IOException {
         super(hadoopConf);
 
-        tableName = getParam(hadoopConf, DDB_CLIENT_TABLE, "delta_log");
-        regionName = getParam(hadoopConf, DDB_CLIENT_REGION, "ru-central1");
-        endpoint = getParam(hadoopConf, DDB_ENDPOINT, "MISSING");
-        lockboxEntry = getParam(hadoopConf, DDB_LOCKBOX, "MISSING");
+        this.factory = new YcDdbDeltaFactory(hadoopConf);
+        this.client = this.factory.getClient();
 
-        final String ttl = getParam(hadoopConf, TTL_SECONDS, null);
-        expirationDelaySeconds = ttl == null ?
-            BaseExternalLogStore.DEFAULT_EXTERNAL_ENTRY_EXPIRATION_DELAY_SECONDS :
-            Long.parseLong(ttl);
-        if (expirationDelaySeconds < 0) {
-            throw new IllegalArgumentException(
-                String.format(
-                    "Can't use negative `%s` value of %s", TTL_SECONDS, expirationDelaySeconds));
-        }
-
-        LOG.info("using tableName {}", tableName);
-        LOG.info("using regionName {}", regionName);
-        LOG.info("using endpoint {}", endpoint);
-        LOG.info("using lockboxEntry {}", lockboxEntry);
-        LOG.info("using ttl (seconds) {}", expirationDelaySeconds);
-
-        client = getClient();
-        tryEnsureTableExists(hadoopConf);
+        tryEnsureTableExists(this.factory, this.client);
     }
 
     /**
@@ -137,7 +91,7 @@ public class YcS3YdbLogStore extends BaseExternalLogStore {
         );
 
         final List<Map<String,AttributeValue>> items = client.query(
-            new QueryRequest(tableName)
+            new QueryRequest(factory.getTableName())
                 .withConsistentRead(true)
                 .withKeyConditions(conditions)
                 .withAttributesToGet(ATTR_TABLE_PATH, ATTR_FILE_NAME)
@@ -145,7 +99,7 @@ public class YcS3YdbLogStore extends BaseExternalLogStore {
 
         for (Map<String,AttributeValue> m : items) {
             LOG.debug("removeMetadata - Dropping item {}", m);
-            client.deleteItem(tableName, m);
+            client.deleteItem(factory.getTableName(), m);
         }
     }
 
@@ -156,20 +110,13 @@ public class YcS3YdbLogStore extends BaseExternalLogStore {
         // N.json file more than once. Though data loss will *NOT* occur, readers of N.json may
         // receive a RemoteFileChangedException from S3 as the ETag of N.json was changed. This is
         // safe to retry, so we do so here.
-        final int maxRetries = Integer.parseInt(
-            getParam(
-                hadoopConf,
-                READ_RETRIES,
-                Integer.toString(RetryableCloseableIterator.DEFAULT_MAX_RETRIES)
-            )
-        );
-
+        final int maxRetries = factory.getMaxReadRetries();
         return new RetryableCloseableIterator(() -> super.read(path, hadoopConf), maxRetries);
     }
 
     @Override
     protected long getExpirationDelaySeconds() {
-        return expirationDelaySeconds;
+        return factory.getExpirationDelaySeconds();
     }
 
     @Override
@@ -182,7 +129,7 @@ public class YcS3YdbLogStore extends BaseExternalLogStore {
             }
             client.putItem(createPutItemRequest(entry, overwrite));
         } catch (ConditionalCheckFailedException e) {
-            LOG.debug(e.toString());
+            LOG.debug("Conditional check failed", e);
             throw new java.nio.file.FileAlreadyExistsException(
                 entry.absoluteFilePath().toString()
             );
@@ -198,7 +145,7 @@ public class YcS3YdbLogStore extends BaseExternalLogStore {
         attributes.put(ATTR_FILE_NAME, new AttributeValue(fileName));
 
         Map<String, AttributeValue> item = client.getItem(
-            new GetItemRequest(tableName, attributes).withConsistentRead(true)
+            new GetItemRequest(factory.getTableName(), attributes).withConsistentRead(true)
         ).getItem();
 
         return item != null ? Optional.of(dbResultToCommitEntry(item)) : Optional.empty();
@@ -215,7 +162,7 @@ public class YcS3YdbLogStore extends BaseExternalLogStore {
         );
 
         final List<Map<String,AttributeValue>> items = client.query(
-            new QueryRequest(tableName)
+            new QueryRequest(factory.getTableName())
                 .withConsistentRead(true)
                 .withScanIndexForward(false)
                 .withLimit(1)
@@ -260,7 +207,7 @@ public class YcS3YdbLogStore extends BaseExternalLogStore {
             );
         }
 
-        final PutItemRequest pr = new PutItemRequest(tableName, attributes);
+        final PutItemRequest pr = new PutItemRequest(factory.getTableName(), attributes);
 
         if (!overwrite) {
             Map<String, ExpectedAttributeValue> expected = new ConcurrentHashMap<>();
@@ -271,14 +218,15 @@ public class YcS3YdbLogStore extends BaseExternalLogStore {
         return pr;
     }
 
-    private void tryEnsureTableExists(Configuration hadoopConf) throws IOException {
+    private static void tryEnsureTableExists(YcDdbDeltaFactory factory, AmazonDynamoDB client)
+            throws IOException {
         int retries = 0;
         boolean created = false;
         while(retries < 20) {
             String status = "CREATING";
             try {
                 // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/dynamodbv2/model/TableDescription.html#getTableStatus--
-                DescribeTableResult result = client.describeTable(tableName);
+                DescribeTableResult result = client.describeTable(factory.getTableName());
                 TableDescription descr = result.getTable();
                 status = descr.getTableStatus();
             } catch (ResourceNotFoundException e) {
@@ -288,7 +236,7 @@ public class YcS3YdbLogStore extends BaseExternalLogStore {
                 LOG.info(
                     "DynamoDB table `{}` in region `{}` does not exist. " +
                     "Creating it now with provisioned throughput of {} RCUs and {} WCUs.",
-                    tableName, regionName, rcu, wcu);
+                    factory.getTableName(), factory.getRegionName(), rcu, wcu);
                 try {
                     client.createTable(
                         // attributeDefinitions
@@ -296,7 +244,7 @@ public class YcS3YdbLogStore extends BaseExternalLogStore {
                             new AttributeDefinition(ATTR_TABLE_PATH, ScalarAttributeType.S),
                             new AttributeDefinition(ATTR_FILE_NAME, ScalarAttributeType.S)
                         ),
-                        tableName,
+                        factory.getTableName(),
                         // keySchema
                         Arrays.asList(
                             new KeySchemaElement(ATTR_TABLE_PATH, KeyType.HASH),
@@ -311,66 +259,24 @@ public class YcS3YdbLogStore extends BaseExternalLogStore {
             }
             if (status.equals("ACTIVE")) {
                 if (created) {
-                    LOG.info("Successfully created DynamoDB table `{}`", tableName);
+                    LOG.info("Successfully created DynamoDB table `{}`", factory.getTableName());
                 } else {
-                    LOG.info("Table `{}` already exists", tableName);
+                    LOG.info("Table `{}` already exists", factory.getTableName());
                 }
                 break;
             } else if (status.equals("CREATING")) {
                 retries += 1;
-                LOG.info("Waiting for `{}` table creation", tableName);
+                LOG.info("Waiting for `{}` table creation", factory.getTableName());
                 try {
                     Thread.sleep(1000);
                 } catch(InterruptedException e) {
                     throw new InterruptedIOException(e.getMessage());
                 }
             } else {
-                LOG.error("table `{}` status: {}", tableName, status);
+                LOG.error("table `{}` status: {}", factory.getTableName(), status);
                 break;  // TODO - raise exception?
             }
         }
-    }
-
-    private AmazonDynamoDB getClient() {
-        // Yandex Cloud and YDB specific configuration.
-        return AmazonDynamoDBClientBuilder.standard()
-                .disableEndpointDiscovery()
-                .withEndpointConfiguration(
-                    new AwsClientBuilder.EndpointConfiguration(endpoint, regionName))
-                .withCredentials(new YcLockboxAwsCredentials(lockboxEntry))
-                .build();
-    }
-
-    /**
-     * Get the hadoopConf param $name that is prefixed either with $SPARK_CONF_PREFIX or
-     * $BASE_CONF_PREFIX.
-     *
-     * If two parameters exist, one for each prefix, then an IllegalArgumentException is thrown.
-     *
-     * If no parameters exist, then the $defaultValue is returned.
-     */
-    protected static String getParam(Configuration hadoopConf, String name, String defaultValue) {
-        final String sparkPrefixKey = String.format("%s.%s", SPARK_CONF_PREFIX, name);
-        final String basePrefixKey = String.format("%s.%s", BASE_CONF_PREFIX, name);
-
-        final String sparkPrefixVal = hadoopConf.get(sparkPrefixKey);
-        final String basePrefixVal = hadoopConf.get(basePrefixKey);
-
-        if (sparkPrefixVal != null &&
-            basePrefixVal != null &&
-            !sparkPrefixVal.equals(basePrefixVal)) {
-            throw new IllegalArgumentException(
-                String.format(
-                    "Configuration properties `%s=%s` and `%s=%s` have different values. " +
-                    "Please set only one.",
-                    sparkPrefixKey, sparkPrefixVal, basePrefixKey, basePrefixVal
-                )
-            );
-        }
-
-        if (sparkPrefixVal != null) return sparkPrefixVal;
-        if (basePrefixVal != null) return basePrefixVal;
-        return defaultValue;
     }
 
 }

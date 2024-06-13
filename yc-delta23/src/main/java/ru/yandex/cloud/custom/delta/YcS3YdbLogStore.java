@@ -54,7 +54,7 @@ public class YcS3YdbLogStore extends BaseExternalLogStore {
 
     // YcS3YdbLogStore Delta20 1.0 2023.07.14
     // YcS3YdbLogStore Delta20 1.1 SNAPSHOT
-    public static final String VERSION = "YcS3YdbLogStore Delta23 1.2 2024.06.11";
+    public static final String VERSION = "YcS3YdbLogStore Delta23 1.2 2024.06.13";
 
     /**
      * DynamoDB table attribute keys

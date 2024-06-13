@@ -18,7 +18,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.yandex.cloud</groupId>
   <artifactId>yc-ddb</artifactId>
-  <version>1.1</version>
+  <version>1.2</version>
   <name>Yandex Data Processing DynamoDB Helpers</name>
   <packaging>jar</packaging>
 
