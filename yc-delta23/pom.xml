@@ -19,7 +19,7 @@
   <groupId>com.yandex.cloud</groupId>
   <artifactId>yc-delta23-multi-dp21</artifactId>
   <!-- Update YcS3YdbLogStore.VERSION! -->
-  <version>1.1</version>
+  <version>1.2</version>
   <name>Yandex Data Proc DeltaLake 2.3 support</name>
   <packaging>jar</packaging>
 
@@ -87,7 +87,7 @@
     <dependency>
         <groupId>com.yandex.cloud</groupId>
         <artifactId>yc-ddb</artifactId>
-        <version>1.0</version>
+        <version>1.1</version>
     </dependency>
   </dependencies>
   <build>

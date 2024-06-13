@@ -14,7 +14,7 @@ import static org.apache.hadoop.fs.s3a.Constants.S3GUARD_DDB_REGION_KEY;
 
 /**
  * This class works generally like DynamoDBClientFactory.DefaultDynamoDBClientFactory,
- * but supports the additional configuraiton properties:
+ * but supports the additional configuration properties:
  *   * "fs.s3a.s3guard.ddb.endpoint" - to specify the DynamoDB endpoint to be used;
  *   * "fs.s3a.s3guard.ddb.lockbox" - Yandex Cloud Lockbox entry holding the AWS key id and secret;
  *   * "fs.s3a.s3guard.ddb.keyfile" - Java XML properties file holding the AWS key id and secret.
@@ -23,14 +23,14 @@ import static org.apache.hadoop.fs.s3a.Constants.S3GUARD_DDB_REGION_KEY;
  * S3Guard.
  *
  * The jar containing the code has to be added to the Hadoop jars, and enabled by setting
- * fs.s3a.s3guard.ddb.client.factory.impl = ru.yandex.cloud.s3guard.YcDynamoDBClientFactory
+ * fs.s3a.s3guard.ddb.client.factory.impl = ru.yandex.cloud.custom.ddb.YcDdbS3GuardFactory
  *
  * @author zinal
  */
-public class YcDynamoDBClientFactory extends Configured implements DynamoDBClientFactory {
+public class YcDdbS3GuardFactory extends Configured implements DynamoDBClientFactory {
 
     private static final org.slf4j.Logger LOG
-            = org.slf4j.LoggerFactory.getLogger(YcDynamoDBClientFactory.class);
+            = org.slf4j.LoggerFactory.getLogger(YcDdbS3GuardFactory.class);
 
     public static final String S3GUARD_DDB_ENDPOINT_KEY = "fs.s3a.s3guard.ddb.endpoint";
     public static final String S3GUARD_DDB_LOCKBOX_KEY = "fs.s3a.s3guard.ddb.lockbox";

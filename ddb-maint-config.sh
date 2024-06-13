@@ -9,7 +9,7 @@ sa_name=delta-maint-sa1
 cf_ddb_name=delta-ddb-cleanup
 cf_s3_name=delta-s3-cleanup
 # YDB DocAPI endpoint and table name
-docapi_endpoint=https://docapi.serverless.yandexcloud.net/ru-central1/b1gfvslmokutuvt2g019/etnac7v7lqqiflor0sem
+docapi_endpoint=https://docapi.serverless.yandexcloud.net/ru-central1/b1g3o4minpkuh10pd2rj/etnfjib1gmua6mvvgdcl
 docapi_table=delta_log
 # S3 file with the list of prefixes to be cleaned up
 s3_prefix_file=s3://mzinal-wh1/delta-prefixes.txt
