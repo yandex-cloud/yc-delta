@@ -13,6 +13,18 @@ import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
+import com.amazonaws.services.dynamodbv2.model.AttributeDefinition;
+import com.amazonaws.services.dynamodbv2.model.DescribeTableResult;
+import com.amazonaws.services.dynamodbv2.model.KeySchemaElement;
+import com.amazonaws.services.dynamodbv2.model.KeyType;
+import com.amazonaws.services.dynamodbv2.model.ProvisionedThroughput;
+import com.amazonaws.services.dynamodbv2.model.ResourceInUseException;
+import com.amazonaws.services.dynamodbv2.model.ResourceNotFoundException;
+import com.amazonaws.services.dynamodbv2.model.ScalarAttributeType;
+import com.amazonaws.services.dynamodbv2.model.TableDescription;
+import java.io.IOException;
+import java.io.InterruptedIOException;
+import java.util.Arrays;
 
 /**
  * Factory class to apply the YDB specific settings used by the multi-cluster DeltaLake installations.
@@ -50,6 +62,15 @@ public class YcDdbDeltaFactory implements AWSCredentialsProvider {
     public static final String ROOT_HADOOP_PREFIX = "spark.hadoop";
     public static final String S3_KEY_NAME = "fs.s3a.access.key";
     public static final String S3_KEY_SECRET = "fs.s3a.secret.key";
+
+    /**
+     * DynamoDB table attribute keys
+     */
+    public static final String ATTR_TABLE_PATH = "tablePath";
+    public static final String ATTR_FILE_NAME = "fileName";
+    public static final String ATTR_TEMP_PATH = "tempPath";
+    public static final String ATTR_COMPLETE = "complete";
+    public static final String ATTR_EXPIRE_TIME = "expireTime";
 
     private final String tableName;
     private final String regionName;
@@ -183,6 +204,66 @@ public class YcDdbDeltaFactory implements AWSCredentialsProvider {
     @Override
     public void refresh() {
         /* noop */
+    }
+
+    public void tryEnsureTableExists(AmazonDynamoDB client) throws IOException {
+        int retries = 0;
+        boolean created = false;
+        while(retries < 20) {
+            String status = "CREATING";
+            try {
+                // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/dynamodbv2/model/TableDescription.html#getTableStatus--
+                DescribeTableResult result = client.describeTable(tableName);
+                TableDescription descr = result.getTable();
+                status = descr.getTableStatus();
+            } catch (ResourceNotFoundException e) {
+                final long rcu = 5; // no need to customize for YDB
+                final long wcu = 5;
+
+                LOG.info(
+                    "DynamoDB table `{}` in region `{}` does not exist. " +
+                    "Creating it now with provisioned throughput of {} RCUs and {} WCUs.",
+                    tableName, regionName, rcu, wcu);
+                try {
+                    client.createTable(
+                        // attributeDefinitions
+                        java.util.Arrays.asList(
+                            new AttributeDefinition(ATTR_TABLE_PATH, ScalarAttributeType.S),
+                            new AttributeDefinition(ATTR_FILE_NAME, ScalarAttributeType.S)
+                        ),
+                        tableName,
+                        // keySchema
+                        Arrays.asList(
+                            new KeySchemaElement(ATTR_TABLE_PATH, KeyType.HASH),
+                            new KeySchemaElement(ATTR_FILE_NAME, KeyType.RANGE)
+                        ),
+                        new ProvisionedThroughput(rcu, wcu)
+                    );
+                    created = true;
+                } catch (ResourceInUseException e3) {
+                    // race condition - table just created by concurrent process
+                }
+            }
+            if (status.equals("ACTIVE")) {
+                if (created) {
+                    LOG.info("Successfully created DynamoDB table `{}`", tableName);
+                } else {
+                    LOG.info("Table `{}` already exists", tableName);
+                }
+                break;
+            } else if (status.equals("CREATING")) {
+                retries += 1;
+                LOG.info("Waiting for `{}` table creation", tableName);
+                try {
+                    Thread.sleep(1000);
+                } catch(InterruptedException e) {
+                    throw new InterruptedIOException(e.getMessage());
+                }
+            } else {
+                LOG.error("table `{}` status: {}", tableName, status);
+                break;  // TODO - raise exception?
+            }
+        }
     }
 
 }

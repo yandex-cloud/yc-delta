@@ -16,7 +16,7 @@
           <scope>runtime</scope>
           <includes>
               <include>com.yandex.cloud:yc-ddb</include>
-              <include>com.yandex.cloud:yc-delta24-multi-dp21</include>
+              <include>com.yandex.cloud:yc-delta24-multi-dp22</include>
               <include>io.delta:delta-core_2.12</include>
               <include>io.delta:delta-storage</include>
               <include>io.delta:delta-storage-s3-dynamodb</include>

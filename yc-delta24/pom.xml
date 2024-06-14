@@ -17,9 +17,9 @@
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.yandex.cloud</groupId>
-  <artifactId>yc-delta24-multi-dp21</artifactId>
+  <artifactId>yc-delta24-multi-dp22</artifactId>
   <!-- Update YcS3YdbLogStore.VERSION! -->
-  <version>1.0</version>
+  <version>1.2</version>
   <name>Yandex Data Proc DeltaLake 2.4 support</name>
   <packaging>jar</packaging>
 
@@ -41,7 +41,7 @@
     <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-aws</artifactId>
-      <version>3.3.2</version>
+      <version>3.3.3</version>
       <scope>provided</scope>
       <exclusions>
           <exclusion>
@@ -53,7 +53,7 @@
     <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-common</artifactId>
-      <version>3.3.2</version>
+      <version>3.3.3</version>
       <scope>provided</scope>
       <exclusions>
           <exclusion>
@@ -61,6 +61,18 @@
               <artifactId>protobuf-java</artifactId>
           </exclusion>
       </exclusions>
+    </dependency>
+    <dependency>
+        <groupId>org.apache.spark</groupId>
+        <artifactId>spark-catalyst_2.12</artifactId>
+        <version>3.5.1</version>
+        <scope>provided</scope>
+    </dependency>
+    <dependency>
+        <groupId>org.apache.spark</groupId>
+        <artifactId>spark-sql_2.12</artifactId>
+        <version>3.5.1</version>
+        <scope>provided</scope>
     </dependency>
     <dependency>
         <groupId>io.delta</groupId>
@@ -75,7 +87,7 @@
     <dependency>
         <groupId>com.yandex.cloud</groupId>
         <artifactId>yc-ddb</artifactId>
-        <version>1.0</version>
+        <version>1.2</version>
     </dependency>
   </dependencies>
   <build>
@@ -83,7 +95,7 @@
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-assembly-plugin</artifactId>
-            <version>3.4.2</version>
+            <version>3.7.1</version>
             <configuration>
                 <descriptors>
                     <descriptor>src/main/assembly/fatjar.xml</descriptor>

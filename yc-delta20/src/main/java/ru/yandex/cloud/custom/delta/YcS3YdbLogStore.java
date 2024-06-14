@@ -1,7 +1,5 @@
 package ru.yandex.cloud.custom.delta;
 
-import java.io.InterruptedIOException;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -12,23 +10,14 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.conf.Configuration;
 
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
-import com.amazonaws.services.dynamodbv2.model.AttributeDefinition;
 import com.amazonaws.services.dynamodbv2.model.AttributeValue;
 import com.amazonaws.services.dynamodbv2.model.ComparisonOperator;
 import com.amazonaws.services.dynamodbv2.model.Condition;
 import com.amazonaws.services.dynamodbv2.model.ConditionalCheckFailedException;
-import com.amazonaws.services.dynamodbv2.model.DescribeTableResult;
-import com.amazonaws.services.dynamodbv2.model.TableDescription;
 import com.amazonaws.services.dynamodbv2.model.ExpectedAttributeValue;
 import com.amazonaws.services.dynamodbv2.model.GetItemRequest;
-import com.amazonaws.services.dynamodbv2.model.KeySchemaElement;
-import com.amazonaws.services.dynamodbv2.model.KeyType;
-import com.amazonaws.services.dynamodbv2.model.ProvisionedThroughput;
 import com.amazonaws.services.dynamodbv2.model.PutItemRequest;
 import com.amazonaws.services.dynamodbv2.model.QueryRequest;
-import com.amazonaws.services.dynamodbv2.model.ResourceNotFoundException;
-import com.amazonaws.services.dynamodbv2.model.ResourceInUseException;
-import com.amazonaws.services.dynamodbv2.model.ScalarAttributeType;
 
 import io.delta.storage.BaseExternalLogStore;
 import io.delta.storage.CloseableIterator;
@@ -38,6 +27,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import ru.yandex.cloud.custom.ddb.YcDdbDeltaFactory;
+import static ru.yandex.cloud.custom.ddb.YcDdbDeltaFactory.ATTR_COMPLETE;
+import static ru.yandex.cloud.custom.ddb.YcDdbDeltaFactory.ATTR_TABLE_PATH;
+import static ru.yandex.cloud.custom.ddb.YcDdbDeltaFactory.ATTR_FILE_NAME;
+import static ru.yandex.cloud.custom.ddb.YcDdbDeltaFactory.ATTR_TEMP_PATH;
+import static ru.yandex.cloud.custom.ddb.YcDdbDeltaFactory.ATTR_EXPIRE_TIME;
 
 /**
  * A customized implementation of {@link S3DynamoDBLogStore} that works with
@@ -54,16 +48,7 @@ public class YcS3YdbLogStore extends BaseExternalLogStore {
 
     // YcS3YdbLogStore Delta20 1.0 2023.07.14
     // YcS3YdbLogStore Delta20 1.1 SNAPSHOT
-    public static final String VERSION = "YcS3YdbLogStore Delta20 1.2 2024.06.13";
-
-    /**
-     * DynamoDB table attribute keys
-     */
-    private static final String ATTR_TABLE_PATH = "tablePath";
-    private static final String ATTR_FILE_NAME = "fileName";
-    private static final String ATTR_TEMP_PATH = "tempPath";
-    private static final String ATTR_COMPLETE = "complete";
-    private static final String ATTR_EXPIRE_TIME = "expireTime";
+    public static final String VERSION = "YcS3YdbLogStore Delta20 1.2 2024.06.14";
 
     private final AmazonDynamoDB client;
     private final YcDdbDeltaFactory factory;
@@ -71,10 +56,12 @@ public class YcS3YdbLogStore extends BaseExternalLogStore {
     public YcS3YdbLogStore(Configuration hadoopConf) throws IOException {
         super(hadoopConf);
 
+        LOG.info("Activating {}", VERSION);
+
         this.factory = new YcDdbDeltaFactory(hadoopConf);
         this.client = this.factory.getClient();
 
-        tryEnsureTableExists(this.factory, this.client);
+        this.factory.tryEnsureTableExists(this.client);
     }
 
     /**
@@ -216,67 +203,6 @@ public class YcS3YdbLogStore extends BaseExternalLogStore {
         }
 
         return pr;
-    }
-
-    private static void tryEnsureTableExists(YcDdbDeltaFactory factory, AmazonDynamoDB client)
-            throws IOException {
-        int retries = 0;
-        boolean created = false;
-        while(retries < 20) {
-            String status = "CREATING";
-            try {
-                // https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/dynamodbv2/model/TableDescription.html#getTableStatus--
-                DescribeTableResult result = client.describeTable(factory.getTableName());
-                TableDescription descr = result.getTable();
-                status = descr.getTableStatus();
-            } catch (ResourceNotFoundException e) {
-                final long rcu = 5; // no need to customize for YDB
-                final long wcu = 5;
-
-                LOG.info(
-                    "DynamoDB table `{}` in region `{}` does not exist. " +
-                    "Creating it now with provisioned throughput of {} RCUs and {} WCUs.",
-                    factory.getTableName(), factory.getRegionName(), rcu, wcu);
-                try {
-                    client.createTable(
-                        // attributeDefinitions
-                        java.util.Arrays.asList(
-                            new AttributeDefinition(ATTR_TABLE_PATH, ScalarAttributeType.S),
-                            new AttributeDefinition(ATTR_FILE_NAME, ScalarAttributeType.S)
-                        ),
-                        factory.getTableName(),
-                        // keySchema
-                        Arrays.asList(
-                            new KeySchemaElement(ATTR_TABLE_PATH, KeyType.HASH),
-                            new KeySchemaElement(ATTR_FILE_NAME, KeyType.RANGE)
-                        ),
-                        new ProvisionedThroughput(rcu, wcu)
-                    );
-                    created = true;
-                } catch (ResourceInUseException e3) {
-                    // race condition - table just created by concurrent process
-                }
-            }
-            if (status.equals("ACTIVE")) {
-                if (created) {
-                    LOG.info("Successfully created DynamoDB table `{}`", factory.getTableName());
-                } else {
-                    LOG.info("Table `{}` already exists", factory.getTableName());
-                }
-                break;
-            } else if (status.equals("CREATING")) {
-                retries += 1;
-                LOG.info("Waiting for `{}` table creation", factory.getTableName());
-                try {
-                    Thread.sleep(1000);
-                } catch(InterruptedException e) {
-                    throw new InterruptedIOException(e.getMessage());
-                }
-            } else {
-                LOG.error("table `{}` status: {}", factory.getTableName(), status);
-                break;  // TODO - raise exception?
-            }
-        }
     }
 
 }
