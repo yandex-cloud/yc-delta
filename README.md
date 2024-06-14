@@ -187,9 +187,16 @@ spark-sql>
     yc resource-manager folder add-access-binding --id ${cur_folder} --service-account-name dp1 --role lockbox.payloadViewer
     ```
 
-7. Необходимые библиотеки Delta Lake 2.x, а также классы-надстройки для подключения к YDB доступны в виде собранных архивов для [DeltaLake 2.0.2](https://github.com/yandex-cloud/yc-delta/releases/download/v1.2/yc-delta20-multi-dp21-1.2-fatjar.jar) и [для DeltaLake 2.3.0](https://github.com/yandex-cloud/yc-delta/releases/download/v1.2/yc-delta23-multi-dp21-1.2-fatjar.jar) . Исходный код надстройки доступен в подкаталогах [yc-delta20](yc-delta20/) и [yc-delta23](yc-delta23/). Собранный архив необходимо разместить в бакете Yandex Object Storage. Права доступа к бакету должны обеспечивать возможность чтения файла архива сервисными учётными записями кластеров Yandex Data Proc.
+7. Необходимые библиотеки Delta Lake 2.x, а также классы-надстройки для подключения к YDB доступны в виде собранных архивов и исходных кодов:
+   
+    * для DeltaLake 2.0.2 [архив](https://github.com/yandex-cloud/yc-delta/releases/download/v1.2/yc-delta20-multi-dp21-1.2-fatjar.jar), [исходный код](./yc-delta20/);
+    * для DeltaLake 2.3.0 [архив](https://github.com/yandex-cloud/yc-delta/releases/download/v1.2/yc-delta23-multi-dp21-1.2-fatjar.jar), [исходный код](./yc-delta23/);
+    * для DeltaLake 2.4.0 [архив](https://github.com/yandex-cloud/yc-delta/releases/download/v1.2/yc-delta24-multi-dp22-1.2-fatjar.jar), [исходный код](./yc-delta24/);
+    * для DeltaLake 3.2.0 [архив](https://github.com/yandex-cloud/yc-delta/releases/download/v1.2/yc-delta32-multi-dp22-1.2-fatjar.jar), [исходный код](./yc-delta32/).
 
-8. Установите необходимые настройки для функционирования Delta Lake, на уровне отдельного задания либо на уровне кластера Yandex Data Proc:
+    Собранный архив необходимо разместить в бакете Yandex Object Storage. Права доступа к бакету должны обеспечивать возможность чтения файла архива сервисными учётными записями кластеров Yandex Data Proc.
+
+8.  Установите необходимые настройки для функционирования Delta Lake, на уровне отдельного задания либо на уровне кластера Yandex Data Proc:
     * зависимость от архива из пункта 7 выше, через свойство `spark.jars`, либо через сочетание свойств `spark.executor.extraClassPath` и `spark.driver.extraClassPath`;
     * `spark.sql.extensions` в значение `io.delta.sql.DeltaSparkSessionExtension`;
     * `spark.sql.catalog.spark_catalog` в значение `org.apache.spark.sql.delta.catalog.YcDeltaCatalog`;
@@ -197,7 +204,7 @@ spark-sql>
     * `spark.io.delta.storage.S3DynamoDBLogStore.ddb.endpoint` в значение точки подключения к Document API YDB для созданной на шаге (1) базы данных (значение поля `document_api_endpoint` из файла `info-delta1.json`);
     * `spark.io.delta.storage.S3DynamoDBLogStore.ddb.lockbox` в значение идентификатора элемента Lockbox, полученного на шаге (5).
 
-9. Проверьте работоспособность Delta Lake, создав тестовую таблицу аналогично показанному ниже примеру:
+9.  Проверьте работоспособность Delta Lake, создав тестовую таблицу аналогично показанному ниже примеру:
 
     ```bash
     $ spark-sql --executor-memory 20g --executor-cores 4 \
@@ -220,19 +227,34 @@ spark-sql>
     ...
     ```
 
-### 4.3. Мультикластерный режим Delta Lake 2.x
+### 4.3. Особенности настройки DeltaLake для работы через Spark Connector в среде Yandex DataSphere
 
-### 4.3. Производственные конфигурации мультикластерного режима
+[Yandex DataSphere](https://datasphere.yandex.cloud/) предоставляет среду для работы с Python ноутбуками, и поддерживает интеграцию с Yandex Data Proc через [коннектор Spark](https://yandex.cloud/ru/docs/datasphere/concepts/spark-connector). Для использования DeltaLake в заданиях Spark, управляемых из ноутбука DataSphere через коннектор Spark, описанную в предыдущем разделе процедуру настройки необходимо модифицировать:
+
+* сервисная учетная запись, создаваемая на шаге (2), должна обладать полномочиями для чтения и записи S3-бакета, связанного с кластером Yandex Data Proc, а также других S3-бакетов, в которых хранятся таблицы Delta Lake;
+* вместо шагов (4), (5) и (6) по размещению ключа доступа в Yandex Lockbox, необходимо указать идентификатор и секретную часть созданного ключа при настройке коннектора Spark в среде DataSphere;
+* на шаге (8) зависимости следует указывать строго в свойстве `spark.jars`, и обязательно в виде ссылки на Object Storage в формате `s3a://BUCKET/path/file1.jar`;
+* также на шаге (8) не следует указывать значение свойства `spark.io.delta.storage.S3DynamoDBLogStore.ddb.lockbox`.
+
+В результате доступ к YDB будет организован с использованием ключа, установленного в настройках коннектора Spark, вместо чтения из ресурса в Yandex Lockbox. В остальном логика работы с DeltaLake в мультикластерном режиме остается неизменной.
+
+Приведем также типичные свойства, которые должны быть установлены на уровне коннектора Spark в среде DataSphere для корректной работы:
+
+* `spark.hadoop.fs.s3a.fast.upload.buffer=bytebuffer` - требуется для корректной инициализации коннектора Spark;
+* `spark.sql.catalogImplementation=hive` - необходимо для работы с внешним Hive Metastore;
+* `spark.sql.repl.eagerEval.enabled=true` - выводит результаты вычислений Spark в читаемом формате для отображения в ноутбуке.
+
+### 4.4. Производственные конфигурации мультикластерного режима
 
 [Документация на DeltaLake](https://docs.delta.io/latest/delta-storage.html#production-configuration-s3-multi-cluster) содержит ряд рекомендаций по настройкам мультикластерного режима для производственных конфигураций. Ниже приведён вариант этих рекомендаций, адаптированный для работы в среде Yandex Cloud.
 
-#### 4.3.1. Настроить пропускную способность базы данных YDB
+#### 4.4.1. Настроить пропускную способность базы данных YDB
 
 По умолчанию бессерверная база данных YDB создаётся с ограниченной пропускной способностью (например, 10 Request Units в секунду). При интенсивной работе с DeltaLake эта пропускная способность может оказаться недостаточной. Рекомендуется контролировать достаточность пропускной способности по графику "Document API units overflow" в разделе мониторинга YDB, и при необходимости увеличить установленный предел пропускной способности.
 
 Важно помнить, что на все базы данных YDB, созданные в определённом облаке, действует суммарное ограничение на пропускную способность, установленное в виде квоты на уровне облака. Соответствующее ограничение также может потребовать корректировки для исключения задержек при доступе со стороны DeltaLake к YDB.
 
-#### 4.3.2. Настроить автоматическую чистку мусора
+#### 4.4.2. Настроить автоматическую чистку мусора
 
 При работе DeltaLake в таблице YDB и в используемых бакетах объектного хранилища могут накапливаться старые неиспользуемые версии метаданных. Для повышения эффективности работы DeltaLake рекомендуется наладить регулярную автоматическую очистку этих ненужных метаданных.
 
