@@ -8,9 +8,9 @@
 
 Delta Lake решает задачу обновления данных в аналитических таблицах, хранимых в виде набора файлов в формате Parquet в HDFS или S3-совместимом хранилище. Таблица Delta Lake может одновременно использоваться пакетными запросами, а также в качестве источника и приемника операций потоковой передачи данных.
 
-## 2. Пре-реквизиты для эффективного использования Delta Lake в среде Data Proc
+## 2. Пре-реквизиты для эффективного использования Delta Lake в среде Yandex Data Proc
 
-Таблицы Delta Lake удобно регистрировать в Hive Metastore, что позволяет работать в парадигме логических баз данных (или схем) и таблиц, без необходимости явно управлять размещением файлов. В среде Data Proc следует использовать внешний по отношению к рабочим кластерам  сервис Hive Metastore, например в форме управляемых экземпляров Metastore.
+Таблицы Delta Lake удобно регистрировать в Hive Metastore, что позволяет работать в парадигме логических баз данных (или схем) и таблиц, без необходимости явно управлять размещением файлов. В среде Yandex Data Proc следует использовать внешний по отношению к рабочим кластерам  сервис Hive Metastore, например в форме управляемых экземпляров Metastore.
 
 > [!IMPORTANT]  
 > Использование внешнего Hive Metastore необходимо для обеспечения сохранности метаданных. Для исполнения рабочей нагрузки часто используются временные кластера DataProc, в которых выполненные настройки, а также данные, записанные на файловую систему HDFS или в сервис Hive Metastore, расположенный непоредственно на вычислительном кластере, теряются при удалении кластера. Для постоянных кластеров DataProc операция пересоздания кластера является достаточно частой, и требуется, например, для обновления версии образа программного обеспечения или для переноса кластера в другую зону доступности.
@@ -24,13 +24,13 @@ Delta Lake решает задачу обновления данных в ана
 
 * `spark.sql.warehouse.dir`, установленное в значение `s3a://Бакет/Путь`, где `Бакет` - используемое имя бакета объектного хранилища, а `Путь` - относительный путь внутри бакета (например, значение `warehouse`).
 
-## 3. Delta Lake для стабильных образов Data Proc 2.0
+## 3. Delta Lake для образов Yandex Data Proc 2.0
 
-Стабильные образы Data Proc (версии 2.0.x) основаны на Apache Spark 3.0.3. В соответствии с [официальной таблицей совместимости](https://docs.delta.io/latest/releases.html), в такой конфигурации может использоваться Delta Lake [версии 0.8.0](https://github.com/delta-io/delta/releases/tag/v0.8.0).
+Версии 2.0.x образов Yandex Data Proc основаны на Apache Spark 3.0.3. В соответствии с [официальной таблицей совместимости](https://docs.delta.io/latest/releases.html), в такой конфигурации может использоваться Delta Lake [версии 0.8.0](https://github.com/delta-io/delta/releases/tag/v0.8.0).
 
 Основным ограничением этой версии Delta Lake является запрет на конкурентную модификацию таблиц в S3-совместимом хранилище (см. [примечание](https://docs.delta.io/0.8.0/delta-storage.html#amazon-s3) в официальной документации). Это ограничение означает, что при работе с таблицами Delta Lake необходимо координировать операции записи таким образом, чтобы исключить одновременную модификацию данных в одной таблице из разных кластеров Data Proc, а также из разных заданий Spark в рамках одного кластера. Нарушение этого требования может привести к неожиданной потере хранимой в таблице информации.
 
-Для использования Delta Lake в сочетании с Data Proc 2.0 достаточно в зависимостях заданий добавить библиотеку `delta-core_2.12-0.8.0.jar`, а также установить следующие свойства Spark:
+Для использования Delta Lake в сочетании с Yandex Data Proc 2.0 достаточно в зависимостях заданий добавить библиотеку `delta-core_2.12-0.8.0.jar`, а также установить следующие свойства Spark:
 
 * `spark.sql.extensions` в значение `io.delta.sql.DeltaSparkSessionExtension`
 * `spark.sql.catalog.spark_catalog` в значение `org.apache.spark.sql.delta.catalog.DeltaCatalog`
@@ -101,9 +101,9 @@ spark-sql>
 
 При настройке перечисленных выше свойств Spark для использования Delta Lake на уровне кластера Data Proc, работа с таблицами Delta Lake может производиться через Spark Thrift Server, включение которого осуществляется свойством `dataproc:hive.thrift.impl=spark`, как указано в [документации Data Proc](https://cloud.yandex.ru/docs/data-proc/concepts/settings-list#spark-thrift-server). Для подключения к Spark Thrift Server может использоваться любая SQL IDE, совместипая с протоколом Thrift, например [DBeaver](https://dbeaver.io/).
 
-## 4. Расширенные возможности Delta Lake для бета-образов Data Proc 2.1
+## 4. Расширенные возможности Delta Lake для образов Yandex Data Proc 2.1
 
-Бета-образы Data Proc версии 2.1 комплектуются компонентами Apache Spark версии 3.2.1 (образы до версии 2.1.3 включительно) и 3.3.2 (образы версии 2.1.4 и более поздние). Чтобы получить доступ к бета-версиям образов Data Proc версии 2.1, запросите его через службу технической поддержки Yandex Cloud. Применительно к Delta Lake:
+Образы Data Proc версии 2.1.x комплектуются компонентами Apache Spark версии 3.2.1 (образы до версии 2.1.3 включительно) и 3.3.2 (образы версии 2.1.4 и более поздние). Чтобы получить доступ к бета-версиям образов Data Proc версии 2.1, запросите его через службу технической поддержки Yandex Cloud. Применительно к Delta Lake:
 
 * Spark 3.2.1 (Data Proc 2.1.0-2.1.3) совместим с Delta Lake [версии 2.0.2](https://github.com/delta-io/delta/releases/tag/v2.0.2);
 * Spark 3.3.2 (Data Proc 2.1.4+) совместим с Delta Lake [версии 2.3.0](https://github.com/delta-io/delta/releases/tag/v2.3.0).
@@ -118,16 +118,23 @@ spark-sql>
 * автоматизированная [компактификация мелких файлов в более крупные](https://docs.delta.io/2.0.2/optimizations-oss.html#compaction-bin-packing) для увеличения производительности запросов;
 * возможность [отката таблицы к предыдущему состоянию](https://docs.delta.io/2.0.2/delta-utility.html#restore-a-delta-table-to-an-earlier-state).
 
-### 4.1. Однокластерный режим Delta Lake 2.x
+### 4.1. Однокластерный режим Delta Lake
 
-При использовании однокластерного режима настройки для использования Delta Lake версии 2.0.2 аналогичны приведённым выше для версии 0.8.0. При настройке зависимостей необходимо учитывать, что в DeltaLake версии 1.2 из библиотеки `delta-core` была выделена дополнительная библиотека `delta-storage`. Состав необходимых зависимостей приведён в таблице ниже.
+При использовании однокластерного режима настройки для использования Delta Lake версии 2.0.2 аналогичны приведённым выше для версии 0.8.0. При настройке зависимостей необходимо учитывать следующие изменения в DeltaLake:
+
+* начиная с DeltaLake 1.2, из библиотеки `delta-core` были выделены дополнительные библиотеки `delta-storage` и `delta-storage-s3-dynamodb`;
+* начиная с DeltaLake 3.0, библиотека `delta-core` была переименована в `delta-spark`.
+
+Состав необходимых зависимостей приведён в таблице ниже.
 
 | Версия образа Data Proc | Версия DeltaLake | Зависимости Maven | Файлы JAR |
 | - | - | - | - |
-| 2.1.0 - 2.1.3 | 2.0.2 | `io.delta:delta-core_2.12:2.0.2`, `io.delta:delta-storage:2.0.2` | `delta-core_2.12-2.0.2.jar`, `delta-storage-2.0.2.jar` |
-| 2.1.4+ | 2.3.0 | `io.delta:delta-core_2.12:2.3.0`, `io.delta:delta-storage:2.3.0` | `delta-core_2.12-2.3.0.jar`, `delta-storage-2.3.0.jar` |
+| 2.1.0 - 2.1.3 | 2.0.2 | `io.delta:delta-core_2.12:2.0.2`, `io.delta:delta-storage:2.0.2`, `io.delta:delta-storage-s3-dynamodb:2.0.2` | `delta-core_2.12-2.0.2.jar`, [delta-storage-2.0.2.jar](https://repo1.maven.org/maven2/io/delta/delta-storage/2.0.2/delta-storage-2.0.2.jar), [delta-storage-s3-dynamodb-2.0.2.jar](https://repo1.maven.org/maven2/io/delta/delta-storage-s3-dynamodb/2.0.2/delta-storage-s3-dynamodb-2.0.2.jar) |
+| 2.1.4+ | 2.3.0 | `io.delta:delta-core_2.12:2.3.0`, `io.delta:delta-storage:2.3.0`, `io.delta:delta-storage-s3-dynamodb:2.3.0` | `delta-core_2.12-2.3.0.jar`, [delta-storage-2.3.0.jar](https://repo1.maven.org/maven2/io/delta/delta-storage/2.3.0/delta-storage-2.3.0.jar), [delta-storage-s3-dynamodb-2.3.0.jar](https://repo1.maven.org/maven2/io/delta/delta-storage-s3-dynamodb/2.3.0/delta-storage-s3-dynamodb-2.3.0.jar) |
+| 2.2.2+ | 2.4.0 | `io.delta:delta-core_2.12:2.4.0`, `io.delta:delta-storage:2.4.0`, `io.delta:delta-storage-s3-dynamodb:2.4.0` | `delta-core_2.12-2.4.0.jar`, [delta-storage-2.4.0.jar](https://repo1.maven.org/maven2/io/delta/delta-storage/2.4.0/delta-storage-2.4.0.jar), [delta-storage-s3-dynamodb-2.4.0.jar(https://repo1.maven.org/maven2/io/delta/delta-storage-s3-dynamodb/2.4.0/delta-storage-s3-dynamodb-2.4.0.jar) |
+| 2.2.2+ | 3.2.0 | `io.delta:delta-spark_2.12:3.2.0`, `io.delta:delta-storage:3.2.0`, `io.delta:delta-storage-s3-dynamodb:3.2.0` | [delta-spark_2.12-3.2.0.jar](https://repo1.maven.org/maven2/io/delta/delta-spark_2.12/3.2.0/delta-spark_2.12-3.2.0.jar), [delta-storage-3.2.0.jar](https://repo1.maven.org/maven2/io/delta/delta-storage/3.2.0/delta-storage-3.2.0.jar), [delta-storage-s3-dynamodb-3.2.0.jar](https://repo1.maven.org/maven2/io/delta/delta-storage-s3-dynamodb/3.2.0/delta-storage-s3-dynamodb-3.2.0.jar) |
 
-### 4.2. Мультикластерный режим Delta Lake 2.x
+### 4.2. Мультикластерный режим Delta Lake
 
 Мультикластерный режим Delta Lake использует дополнительный ресурс - базу данных DynamoDB - для координации доступа к таблицам Delta Lake перед внесением в них изменений. В среде Yandex Cloud мультикластерный режим Delta Lake можно использовать, задействовав [управляемый сервис YDB](https://cloud.yandex.ru/services/ydb) в качестве прозрачной замены DynamoDB. Для использования YDB вместо DynamoDB требуется специальное расширение DeltaLake, которое подготовлено и доступно для скачивания.
 
@@ -180,9 +187,9 @@ spark-sql>
     yc resource-manager folder add-access-binding --id ${cur_folder} --service-account-name dp1 --role lockbox.payloadViewer
     ```
 
-7. Необходимые библиотеки Delta Lake 2.x, а также классы-надстройки для подключения к YDB доступны в виде собранных архивов для [DeltaLake 2.0.2](https://github.com/yandex-cloud/yc-delta/releases/download/v1.1/yc-delta20-multi-dp21-1.1-fatjar.jar) и [для DeltaLake 2.3.0](https://github.com/yandex-cloud/yc-delta/releases/download/v1.1/yc-delta23-multi-dp21-1.1-fatjar.jar) . Исходный код надстройки доступен в подкаталогах [yc-delta20](yc-delta20/) и [yc-delta23](yc-delta23/). Собранный архив необходимо разместить в бакете Yandex Object Storage. Права доступа к бакету должны обеспечивать возможность чтения файла архива сервисными учётными записями кластеров Data Proc.
+7. Необходимые библиотеки Delta Lake 2.x, а также классы-надстройки для подключения к YDB доступны в виде собранных архивов для [DeltaLake 2.0.2](https://github.com/yandex-cloud/yc-delta/releases/download/v1.2/yc-delta20-multi-dp21-1.2-fatjar.jar) и [для DeltaLake 2.3.0](https://github.com/yandex-cloud/yc-delta/releases/download/v1.2/yc-delta23-multi-dp21-1.2-fatjar.jar) . Исходный код надстройки доступен в подкаталогах [yc-delta20](yc-delta20/) и [yc-delta23](yc-delta23/). Собранный архив необходимо разместить в бакете Yandex Object Storage. Права доступа к бакету должны обеспечивать возможность чтения файла архива сервисными учётными записями кластеров Yandex Data Proc.
 
-8. Установите необходимые настройки для функционирования Delta Lake, на уровне отдельного задания либо на уровне кластера Data Proc:
+8. Установите необходимые настройки для функционирования Delta Lake, на уровне отдельного задания либо на уровне кластера Yandex Data Proc:
     * зависимость от архива из пункта 7 выше, через свойство `spark.jars`, либо через сочетание свойств `spark.executor.extraClassPath` и `spark.driver.extraClassPath`;
     * `spark.sql.extensions` в значение `io.delta.sql.DeltaSparkSessionExtension`;
     * `spark.sql.catalog.spark_catalog` в значение `org.apache.spark.sql.delta.catalog.YcDeltaCatalog`;
@@ -194,7 +201,7 @@ spark-sql>
 
     ```bash
     $ spark-sql --executor-memory 20g --executor-cores 4 \
-      --jars yc-delta23-multi-dp21-1.1-fatjar.jar \
+      --jars yc-delta23-multi-dp21-1.2-fatjar.jar \
       --conf spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension \
       --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.YcDeltaCatalog \
       --conf spark.delta.logStore.s3a.impl=ru.yandex.cloud.custom.delta.YcS3YdbLogStore \
@@ -212,6 +219,8 @@ spark-sql>
     spark-sql> SELECT * FROM tab1;
     ...
     ```
+
+### 4.3. Мультикластерный режим Delta Lake 2.x
 
 ### 4.3. Производственные конфигурации мультикластерного режима
 
@@ -250,13 +259,17 @@ spark-sql>
 
 В зависимости от установленного режима меняется ожидаемая структура пути размещения временных файлов DeltaLake.
 
-## 5. Полезная информация по настройке и применению Delta Lake
+## 5. Использование Delta Lake 2.4 и 3.2 для образов Yandex Data Proc 2.2
 
-### 5.1. Количество параллельных заданий оператора OPTIMIZE
+
+
+## 6. Полезная информация по настройке и применению Delta Lake
+
+### 6.1. Количество параллельных заданий оператора OPTIMIZE
 
 Оператор `OPTIMIZE` в Delta Lake 2.0.2 и выше запускает несколько параллельных заданий для объединения более мелких файлов в более крупные. Количество параллельных заданий регулируется свойством `spark.databricks.delta.optimize.maxThreads`, по умолчанию используется значение `10`. При обработке очень больших таблиц для ускорения можно использовать значительно большие значения, например `100` или даже `1000`, если ресурсы кластера позволяют запустить такое количество параллельных операций.
 
-### 5.2. Синтаксис для конвертации партиционированных таблиц
+### 6.2. Синтаксис для конвертации партиционированных таблиц
 
 Delta Lake поддерживает оператор `CONVERT TO DELTA` для преобразования обычных таблиц Spark SQL в формат Delta Lake. При работе с партиционированными таблицами у этого оператора используется специальный вариант синтаксиса с указанием колонок партиционирования, как показано в примере ниже:
 
@@ -265,7 +278,7 @@ Delta Lake поддерживает оператор `CONVERT TO DELTA` для �
 CONVERT TO DELTA megatab_1g PARTITIONED BY (tv_year INT, tv_month INT);
 ```
 
-### 5.3. Принудительная очистка истории изменения таблицы
+### 6.3. Принудительная очистка истории изменения таблицы
 
 По умолчанию Delta Lake хранит все изменения таблицы за период, определяемый параметром `delta.logRetentionDuration`, устанавливаемым на уровне таблицы командой `ALTER TABLE SET TBLPROPERTIES` (см. синтаксис для управления параметрами таблиц в [документации Delta Lake](https://docs.delta.io/latest/delta-batch.html#-table-properties)). По умолчанию срок хранения истории изменений составляет 30 суток.
 
@@ -280,6 +293,6 @@ SET spark.databricks.delta.retentionDurationCheck.enabled = false;
 VACUUM ИмяТаблицы RETAIN 0 HOURS;
 ```
 
-### 5.4. Пример операторов для генерации таблицы Delta Lake на 1 миллиард записей
+### 6.4. Пример операторов для генерации таблицы Delta Lake на 1 миллиард записей
 
 В файле [delta-sample.sql](./delta-sample.sql) приведен набор команд, который может использоваться для проверки стабильности функционирования кластера Data Proc с библиотеками Delta Lake под нагрузкой, связанной с генерацией и записью значительного объёма данных.
