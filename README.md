@@ -101,7 +101,7 @@ spark-sql>
 
 При настройке перечисленных выше свойств Spark для использования Delta Lake на уровне кластера Data Proc, работа с таблицами Delta Lake может производиться через Spark Thrift Server, включение которого осуществляется свойством `dataproc:hive.thrift.impl=spark`, как указано в [документации Data Proc](https://cloud.yandex.ru/docs/data-proc/concepts/settings-list#spark-thrift-server). Для подключения к Spark Thrift Server может использоваться любая SQL IDE, совместипая с протоколом Thrift, например [DBeaver](https://dbeaver.io/).
 
-## 4. Расширенные возможности Delta Lake для образов Yandex Data Proc 2.1
+## 4. Возможности Delta Lake для образов Yandex Data Proc 2.1 и выше
 
 Образы Data Proc версии 2.1.x комплектуются компонентами Apache Spark версии 3.2.1 (образы до версии 2.1.3 включительно) и 3.3.2 (образы версии 2.1.4 и более поздние). Чтобы получить доступ к бета-версиям образов Data Proc версии 2.1, запросите его через службу технической поддержки Yandex Cloud. Применительно к Delta Lake:
 
@@ -261,7 +261,14 @@ spark-sql>
 
 ## 5. Использование Delta Lake 2.4 и 3.2 для образов Yandex Data Proc 2.2
 
+Образы Data Proc версии 2.2.x комплектуются компонентами Apache Spark версии 3.5.0. Чтобы получить доступ к бета-версиям образов Data Proc версии 2.2, запросите его через службу технической поддержки Yandex Cloud. Использование Spark 3.5.0 в образах линейки 2.2.x позволяет задействовать DeltaLake версий 2.4.0 и 3.2.0, используя следующие дополнительные возможности:
 
+* поддержка [Deletion Vectors](https://docs.delta.io/latest/delta-deletion-vectors.html) для более эффективного удаления отдельных записей;
+* улучшения в мультикластерном режиме работы, повышающие стабильность выполнения конкурентных операций чтения и записи данных;
+* поддержка [Universal Format](https://docs.delta.io/latest/delta-uniform.html), позволяющего читать таблицы DeltaLake клиентами Iceberg и Hudi;
+* доступ к источникам данных, использующим протокол [Delta Sharing](https://docs.delta.io/latest/delta-sharing.html);
+* поддержка [Liquid Clustering](https://docs.delta.io/latest/delta-clustering.html) как более эффективной замены классического партиционирования таблиц в стиле Apache Hive;
+* многочисленные улучшения производительности.
 
 ## 6. Полезная информация по настройке и применению Delta Lake
 
