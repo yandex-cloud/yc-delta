@@ -29,13 +29,13 @@ WITH tab100(a) AS (
 SELECT CAST(x.a AS BIGINT) AS num FROM tab1k x);
 
 -- Представление для генерации 1 миллиарда строк с последовательными числами 1-1g
-CREATE VIEW demo1_tab1g_v AS (
+CREATE OR REPLACE VIEW demo1_tab1g_v AS (
   SELECT 1 + x.num + 1000*y.num + 1000000*z.num AS num 
   FROM demo1_tab1k_v x, demo1_tab1k_v y, demo1_tab1k_v z
 );
 
 -- Представление для генерации выходного набора записей
-CREATE VIEW demo1_uuid1g_v AS (
+CREATE OR REPLACE VIEW demo1_uuid1g_v AS (
   SELECT num, tv, 
      extract(YEAR FROM tv) AS tv_year,
      extract(MONTH FROM tv) AS tv_month,
@@ -70,7 +70,7 @@ OPTIMIZE deltatab1;
 
 -- Удалить лишние файлы
 SET spark.databricks.delta.retentionDurationCheck.enabled = false;
-VACUUM deltatab2 RETAIN 0 HOURS;
+VACUUM deltatab1 RETAIN 0 HOURS;
 
 -- Примеры запросов
 select substring(a,1,1) as al, count(*) from deltatab1 group by substring(a,1,1) order by substring(a,1,1);
