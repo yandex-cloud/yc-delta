@@ -1,6 +1,6 @@
-# Использование Delta Lake в Yandex Data Proc
+# Использование Delta Lake в Yandex Data Processing
 
-**Важное замечание.** Программное обеспечение [Delta Lake](https://delta.io) и кастомизации для него, предлагаемые в этом репозитории, не являются частью сервиса [Yandex Data Proc](https://cloud.yandex.ru/services/data-proc), и не сопровождаются командой разработки и службой поддержки этого сервиса.
+**Важное замечание.** Программное обеспечение [Delta Lake](https://delta.io) и кастомизации для него, предлагаемые в этом репозитории, не являются частью сервиса [Yandex Data Processing](https://cloud.yandex.ru/services/data-proc), и не сопровождаются командой разработки и службой поддержки этого сервиса.
 
 ## 1. Что такое Delta Lake и зачем он нужен
 
@@ -8,12 +8,12 @@
 
 Delta Lake решает задачу обновления данных в аналитических таблицах, хранимых в виде набора файлов в формате Parquet в HDFS или S3-совместимом хранилище. Таблица Delta Lake может одновременно использоваться пакетными запросами, а также в качестве источника и приемника операций потоковой передачи данных.
 
-## 2. Пре-реквизиты для эффективного использования Delta Lake в среде Yandex Data Proc
+## 2. Пре-реквизиты для эффективного использования Delta Lake в среде Yandex Data Processing
 
 Таблицы Delta Lake удобно регистрировать в Hive Metastore, что позволяет работать в парадигме логических баз данных (или схем) и таблиц, без необходимости явно управлять размещением файлов. В среде Yandex Data Proc следует использовать внешний по отношению к рабочим кластерам  сервис Hive Metastore, например в форме управляемых экземпляров Metastore.
 
 > [!IMPORTANT]  
-> Использование внешнего Hive Metastore необходимо для обеспечения сохранности метаданных. Для исполнения рабочей нагрузки часто используются временные кластера DataProc, в которых выполненные настройки, а также данные, записанные на файловую систему HDFS или в сервис Hive Metastore, расположенный непоредственно на вычислительном кластере, теряются при удалении кластера. Для постоянных кластеров DataProc операция пересоздания кластера является достаточно частой, и требуется, например, для обновления версии образа программного обеспечения или для переноса кластера в другую зону доступности.
+> Использование внешнего Hive Metastore необходимо для обеспечения сохранности метаданных. Для исполнения рабочей нагрузки часто используются временные кластера DataProc, в которых выполненные настройки, а также данные, записанные на файловую систему HDFS или в сервис Hive Metastore, расположенный непоредственно на вычислительном кластере, теряются при удалении кластера. Для постоянных кластеров YDP операция пересоздания кластера является достаточно частой, и требуется, например, для обновления версии образа программного обеспечения или для переноса кластера в другую зону доступности.
 
 Для использования развёрнутых внешних экземпляров Metastore необходимо настроить на уровне кластера либо задания следующие свойства Spark:
 
@@ -26,11 +26,11 @@ Delta Lake решает задачу обновления данных в ана
 
 ## 3. Delta Lake для образов Yandex Data Proc 2.0
 
-Версии 2.0.x образов Yandex Data Proc основаны на Apache Spark 3.0.3. В соответствии с [официальной таблицей совместимости](https://docs.delta.io/latest/releases.html), в такой конфигурации может использоваться Delta Lake [версии 0.8.0](https://github.com/delta-io/delta/releases/tag/v0.8.0).
+Версии 2.0.x образов YDP основаны на Apache Spark 3.0.3. В соответствии с [официальной таблицей совместимости](https://docs.delta.io/latest/releases.html), в такой конфигурации может использоваться Delta Lake [версии 0.8.0](https://github.com/delta-io/delta/releases/tag/v0.8.0).
 
 Основным ограничением этой версии Delta Lake является запрет на конкурентную модификацию таблиц в S3-совместимом хранилище (см. [примечание](https://docs.delta.io/0.8.0/delta-storage.html#amazon-s3) в официальной документации). Это ограничение означает, что при работе с таблицами Delta Lake необходимо координировать операции записи таким образом, чтобы исключить одновременную модификацию данных в одной таблице из разных кластеров Data Proc, а также из разных заданий Spark в рамках одного кластера. Нарушение этого требования может привести к неожиданной потере хранимой в таблице информации.
 
-Для использования Delta Lake в сочетании с Yandex Data Proc 2.0 достаточно в зависимостях заданий добавить библиотеку `delta-core_2.12-0.8.0.jar`, а также установить следующие свойства Spark:
+Для использования Delta Lake в сочетании с YDP 2.0 достаточно в зависимостях заданий добавить библиотеку `delta-core_2.12-0.8.0.jar`, а также установить следующие свойства Spark:
 
 * `spark.sql.extensions` в значение `io.delta.sql.DeltaSparkSessionExtension`
 * `spark.sql.catalog.spark_catalog` в значение `org.apache.spark.sql.delta.catalog.DeltaCatalog`
@@ -99,11 +99,11 @@ Time taken: 1.166 seconds, Fetched 3 row(s)
 spark-sql> 
 ```
 
-При настройке перечисленных выше свойств Spark для использования Delta Lake на уровне кластера Data Proc, работа с таблицами Delta Lake может производиться через Spark Thrift Server, включение которого осуществляется свойством `dataproc:hive.thrift.impl=spark`, как указано в [документации Data Proc](https://cloud.yandex.ru/docs/data-proc/concepts/settings-list#spark-thrift-server). Для подключения к Spark Thrift Server может использоваться любая SQL IDE, совместипая с протоколом Thrift, например [DBeaver](https://dbeaver.io/).
+При настройке перечисленных выше свойств Spark для использования Delta Lake на уровне кластера Data Proc, работа с таблицами Delta Lake может производиться через Spark Thrift Server, включение которого осуществляется свойством `dataproc:hive.thrift.impl=spark`, как указано в [документации Yandex Data Processing](https://cloud.yandex.ru/docs/data-proc/concepts/settings-list#spark-thrift-server). Для подключения к Spark Thrift Server может использоваться любая SQL IDE, совместипая с протоколом Thrift, например [DBeaver](https://dbeaver.io/).
 
-## 4. Возможности Delta Lake для образов Yandex Data Proc 2.1 и выше
+## 4. Возможности Delta Lake для образов Yandex Data Processing 2.1 и выше
 
-Образы Data Proc версии 2.1.x комплектуются компонентами Apache Spark версии 3.2.1 (образы до версии 2.1.3 включительно) и 3.3.2 (образы версии 2.1.4 и более поздние). Чтобы получить доступ к бета-версиям образов Data Proc версии 2.1, запросите его через службу технической поддержки Yandex Cloud. Применительно к Delta Lake:
+Образы YDP версии 2.1.x комплектуются компонентами Apache Spark версии 3.2.1 (образы до версии 2.1.3 включительно) и 3.3.2 (образы версии 2.1.4 и более поздние). Применительно к Delta Lake:
 
 * Spark 3.2.1 (Data Proc 2.1.0-2.1.3) совместим с Delta Lake [версии 2.0.2](https://github.com/delta-io/delta/releases/tag/v2.0.2);
 * Spark 3.3.2 (Data Proc 2.1.4+) совместим с Delta Lake [версии 2.3.0](https://github.com/delta-io/delta/releases/tag/v2.3.0).
@@ -127,7 +127,7 @@ spark-sql>
 
 Состав необходимых зависимостей приведён в таблице ниже.
 
-| Версия образа Data Proc | Версия DeltaLake | Зависимости Maven | Файлы JAR |
+| Версия образа YDP | Версия DeltaLake | Зависимости Maven | Файлы JAR |
 | - | - | - | - |
 | 2.1.0 - 2.1.3 | 2.0.2 | [io.delta:delta-core_2.12:2.0.2](https://mvnrepository.com/artifact/io.delta/delta-core_2.12/2.0.2), [io.delta:delta-storage:2.0.2](https://mvnrepository.com/artifact/io.delta/delta-storage/2.0.2), [io.delta:delta-storage-s3-dynamodb:2.0.2](https://mvnrepository.com/artifact/io.delta/delta-storage-s3-dynamodb/2.0.2) | [delta-core_2.12-2.0.2.jar](https://repo1.maven.org/maven2/io/delta/delta-core_2.12/2.0.2/delta-core_2.12-2.0.2.jar), [delta-storage-2.0.2.jar](https://repo1.maven.org/maven2/io/delta/delta-storage/2.0.2/delta-storage-2.0.2.jar), [delta-storage-s3-dynamodb-2.0.2.jar](https://repo1.maven.org/maven2/io/delta/delta-storage-s3-dynamodb/2.0.2/delta-storage-s3-dynamodb-2.0.2.jar) |
 | 2.1.4+ | 2.3.0 | [io.delta:delta-core_2.12:2.3.0](https://mvnrepository.com/artifact/io.delta/delta-core_2.12/2.3.0), [io.delta:delta-storage:2.3.0](https://mvnrepository.com/artifact/io.delta/delta-storage/2.3.0), [io.delta:delta-storage-s3-dynamodb:2.3.0](https://mvnrepository.com/artifact/io.delta/delta-storage-s3-dynamodb/2.3.0) | [delta-core_2.12-2.3.0.jar](https://repo1.maven.org/maven2/io/delta/delta-core_2.12/2.3.0/delta-core_2.12-2.3.0.jar), [delta-storage-2.3.0.jar](https://repo1.maven.org/maven2/io/delta/delta-storage/2.3.0/delta-storage-2.3.0.jar), [delta-storage-s3-dynamodb-2.3.0.jar](https://repo1.maven.org/maven2/io/delta/delta-storage-s3-dynamodb/2.3.0/delta-storage-s3-dynamodb-2.3.0.jar) |
@@ -194,9 +194,9 @@ spark-sql>
     * для DeltaLake 2.4.0 [архив](https://github.com/yandex-cloud/yc-delta/releases/download/v1.2/yc-delta24-multi-dp22-1.2-fatjar.jar), [исходный код](./yc-delta24/);
     * для DeltaLake 3.2.0 [архив](https://github.com/yandex-cloud/yc-delta/releases/download/v1.2/yc-delta32-multi-dp22-1.2-fatjar.jar), [исходный код](./yc-delta32/).
 
-    Собранный архив необходимо разместить в бакете Yandex Object Storage. Права доступа к бакету должны обеспечивать возможность чтения файла архива сервисными учётными записями кластеров Yandex Data Proc.
+    Собранный архив необходимо разместить в бакете Yandex Object Storage. Права доступа к бакету должны обеспечивать возможность чтения файла архива сервисными учётными записями кластеров Yandex Data Processing.
 
-8.  Установите необходимые настройки для функционирования Delta Lake, на уровне отдельного задания либо на уровне кластера Yandex Data Proc:
+8.  Установите необходимые настройки для функционирования Delta Lake, на уровне отдельного задания либо на уровне кластера Yandex Data Processing:
     * зависимость от архива из пункта 7 выше, через свойство `spark.jars`, либо через сочетание свойств `spark.executor.extraClassPath` и `spark.driver.extraClassPath`;
     * `spark.sql.extensions` в значение `io.delta.sql.DeltaSparkSessionExtension`;
     * `spark.sql.catalog.spark_catalog` в значение `org.apache.spark.sql.delta.catalog.YcDeltaCatalog`;
@@ -229,9 +229,9 @@ spark-sql>
 
 ### 4.3. Особенности настройки DeltaLake для работы через Spark Connector в среде Yandex DataSphere
 
-[Yandex DataSphere](https://datasphere.yandex.cloud/) предоставляет среду для работы с Python ноутбуками, и поддерживает интеграцию с Yandex Data Proc через [коннектор Spark](https://yandex.cloud/ru/docs/datasphere/concepts/spark-connector). Для использования DeltaLake в заданиях Spark, управляемых из ноутбука DataSphere через коннектор Spark, описанную в предыдущем разделе процедуру настройки необходимо модифицировать:
+[Yandex DataSphere](https://datasphere.yandex.cloud/) предоставляет среду для работы с Python ноутбуками, и поддерживает интеграцию с Yandex Data Processing через [коннектор Spark](https://yandex.cloud/ru/docs/datasphere/concepts/spark-connector). Для использования DeltaLake в заданиях Spark, управляемых из ноутбука DataSphere через коннектор Spark, описанную в предыдущем разделе процедуру настройки необходимо модифицировать:
 
-* сервисная учетная запись, создаваемая на шаге (2), должна обладать полномочиями для чтения и записи S3-бакета, связанного с кластером Yandex Data Proc, а также других S3-бакетов, в которых хранятся таблицы Delta Lake;
+* сервисная учетная запись, создаваемая на шаге (2), должна обладать полномочиями для чтения и записи S3-бакета, связанного с кластером Yandex Data Processing, а также других S3-бакетов, в которых хранятся таблицы Delta Lake;
 * вместо шагов (4), (5) и (6) по размещению ключа доступа в Yandex Lockbox, необходимо указать идентификатор и секретную часть созданного ключа при настройке коннектора Spark в среде DataSphere;
 * на шаге (8) зависимости следует указывать строго в свойстве `spark.jars`, и обязательно в виде ссылки на Object Storage в формате `s3a://BUCKET/path/file1.jar`;
 * также на шаге (8) не следует указывать значение свойства `spark.io.delta.storage.S3DynamoDBLogStore.ddb.lockbox`.
@@ -281,9 +281,9 @@ spark-sql>
 
 В зависимости от установленного режима меняется ожидаемая структура пути размещения временных файлов DeltaLake.
 
-## 5. Использование Delta Lake 2.4 и 3.2 для образов Yandex Data Proc 2.2
+## 5. Использование Delta Lake 2.4 и 3.2 для образов Yandex Data Processing 2.2
 
-Образы Data Proc версии 2.2.x комплектуются компонентами Apache Spark версии 3.5.0. Чтобы получить доступ к бета-версиям образов Data Proc версии 2.2, запросите его через службу технической поддержки Yandex Cloud. Использование Spark 3.5.0 в образах линейки 2.2.x позволяет задействовать DeltaLake версий 2.4.0 и 3.2.0, используя следующие дополнительные возможности:
+Образы Yandex Data Processing версии 2.2.x комплектуются компонентами Apache Spark версии 3.5.0. Чтобы получить доступ к бета-версиям образов Yandex Data Processing версии 2.2, запросите его через службу технической поддержки Yandex Cloud. Использование Spark 3.5.0 в образах линейки 2.2.x позволяет задействовать DeltaLake версий 2.4.0 и 3.2.0, используя следующие дополнительные возможности:
 
 * поддержка [Deletion Vectors](https://docs.delta.io/latest/delta-deletion-vectors.html) для более эффективного удаления отдельных записей;
 * улучшения в мультикластерном режиме работы, повышающие стабильность выполнения конкурентных операций чтения и записи данных;
