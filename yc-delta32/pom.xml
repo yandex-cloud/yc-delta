@@ -19,7 +19,7 @@
   <groupId>com.yandex.cloud</groupId>
   <artifactId>yc-delta32-multi-dp22</artifactId>
   <!-- Update YcS3YdbLogStore.VERSION! -->
-  <version>1.2</version>
+  <version>1.3</version>
   <name>Yandex Data Proc DeltaLake 3.2 support</name>
   <packaging>jar</packaging>
 
