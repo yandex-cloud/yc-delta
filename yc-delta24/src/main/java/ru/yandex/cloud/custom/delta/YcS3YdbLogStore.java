@@ -37,8 +37,8 @@ import static ru.yandex.cloud.custom.ddb.YcDdbDeltaFactory.ATTR_EXPIRE_TIME;
  * A customized implementation of {@link S3DynamoDBLogStore} that works with
  * YDB as a DynamoDB substitute in Yandex Cloud.
  *
- * Initially copied from Delta Lake 2.3.0, original code reference:
- * https://github.com/delta-io/delta/blob/v2.3.0/storage-s3-dynamodb/src/main/java/io/delta/storage/S3DynamoDBLogStore.java
+ * Initially copied from Delta Lake 2.4.0, original code reference:
+ * https://github.com/delta-io/delta/blob/v2.4.0/storage-s3-dynamodb/src/main/java/io/delta/storage/S3DynamoDBLogStore.java
  *
  * Adopted for YDB by Maksim Zinal.
  */
@@ -46,9 +46,9 @@ public class YcS3YdbLogStore extends BaseExternalLogStore {
 
     private static final Logger LOG = LoggerFactory.getLogger(YcS3YdbLogStore.class);
 
-    // YcS3YdbLogStore Delta20 1.0 2023.07.14
-    // YcS3YdbLogStore Delta20 1.1 SNAPSHOT
-    public static final String VERSION = "YcS3YdbLogStore Delta24 1.2 2024.06.14";
+    // YcS3YdbLogStore Delta24 1.0 2023.07.14
+    // YcS3YdbLogStore Delta24 1.1 SNAPSHOT
+    public static final String VERSION = "YcS3YdbLogStore Delta24 1.3 2024.08.22";
 
     private final AmazonDynamoDB client;
     private final YcDdbDeltaFactory factory;
@@ -84,9 +84,11 @@ public class YcS3YdbLogStore extends BaseExternalLogStore {
                 .withAttributesToGet(ATTR_TABLE_PATH, ATTR_FILE_NAME)
         ).getItems();
 
-        for (Map<String,AttributeValue> m : items) {
-            LOG.debug("removeMetadata - Dropping item {}", m);
-            client.deleteItem(factory.getTableName(), m);
+        if (items != null) {
+            for (Map<String,AttributeValue> m : items) {
+                LOG.debug("removeMetadata - Dropping item {}", m);
+                client.deleteItem(factory.getTableName(), m);
+            }
         }
     }
 
@@ -156,7 +158,7 @@ public class YcS3YdbLogStore extends BaseExternalLogStore {
                 .withKeyConditions(conditions)
         ).getItems();
 
-        if (items.isEmpty()) {
+        if (null == items || items.isEmpty()) {
             return Optional.empty();
         } else {
             return Optional.of(dbResultToCommitEntry(items.get(0)));

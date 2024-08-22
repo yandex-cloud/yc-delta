@@ -48,7 +48,7 @@ public class YcS3YdbLogStore extends BaseExternalLogStore {
 
     // YcS3YdbLogStore Delta20 1.0 2023.07.14
     // YcS3YdbLogStore Delta20 1.1 SNAPSHOT
-    public static final String VERSION = "YcS3YdbLogStore Delta32 1.2 2024.06.14";
+    public static final String VERSION = "YcS3YdbLogStore Delta32 1.3 2024.08.22";
 
     private final AmazonDynamoDB client;
     private final YcDdbDeltaFactory factory;
@@ -84,9 +84,11 @@ public class YcS3YdbLogStore extends BaseExternalLogStore {
                 .withAttributesToGet(ATTR_TABLE_PATH, ATTR_FILE_NAME)
         ).getItems();
 
-        for (Map<String,AttributeValue> m : items) {
-            LOG.debug("removeMetadata - Dropping item {}", m);
-            client.deleteItem(factory.getTableName(), m);
+        if (items != null) {
+            for (Map<String,AttributeValue> m : items) {
+                LOG.debug("removeMetadata - Dropping item {}", m);
+                client.deleteItem(factory.getTableName(), m);
+            }
         }
     }
 
@@ -156,7 +158,7 @@ public class YcS3YdbLogStore extends BaseExternalLogStore {
                 .withKeyConditions(conditions)
         ).getItems();
 
-        if (items.isEmpty()) {
+        if (null == items || items.isEmpty()) {
             return Optional.empty();
         } else {
             return Optional.of(dbResultToCommitEntry(items.get(0)));
